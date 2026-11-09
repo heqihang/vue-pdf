@@ -1,0 +1,8 @@
+packages:
+  - '.'
+onlyBuiltDependencies:
+  - esbuild
+ignoredBuiltDependencies:
+  - canvas
+overrides:
+  rollup: 4.52.4

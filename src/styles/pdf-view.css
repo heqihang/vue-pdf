@@ -1,0 +1,731 @@
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 20px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+        }
+
+        .toolbar-title {
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        /* 页码导航 */
+        .page-nav {
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-nav.show {
+            display: flex;
+        }
+
+        .page-input {
+            width: 56px;
+            padding: 5px 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.35);
+            color: white;
+            outline: none;
+        }
+
+        .page-input:focus {
+            border-color: #3b82f6;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+        }
+
+        .page-total {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.85);
+            white-space: nowrap;
+        }
+
+        .upload-btn {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            border-radius: 8px;
+        }
+
+        .upload-btn input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            font-size: 0;
+        }
+
+        .upload-btn button {
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+            white-space: nowrap;
+        }
+
+        .upload-btn button:hover {
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+            filter: brightness(1.08);
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 0.85rem;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-name {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .clear-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 24px;
+        }
+
+        .clear-btn:hover {
+            background: #ef4444;
+        }
+
+        .main {
+            position: relative;
+            height: 100vh;
+            display: flex;
+        }
+
+        .empty {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: #64748b;
+            z-index: 10;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: white;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+        }
+
+        .viewerContainer {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: auto;
+            background: #e2e8f0;
+        }
+
+        .pdfViewer {
+            padding: 24px 8px;
+        }
+
+        .pdfViewer .page {
+            position: relative;
+            margin: 0 auto 24px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            overflow: visible !important;
+        }
+
+        .annotationLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .textLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .textLayer span {
+            pointer-events: auto;
+            cursor: text;
+        }
+
+        /* 三种颜色共用一层 1px 内边框，悬停只改变线型，不重复描边。 */
+        .viewerContainer.show-span-boundaries .page [data-text-overflow="1"]::after,
+        .viewerContainer.show-span-boundaries .page [data-region-editable="1"]:not([data-text-overflow="1"])::after,
+        .viewerContainer.show-span-boundaries .page span[data-span-boundary="1"]:not(.is-merged):not([data-merge-span]):not([data-text-overflow="1"]):not([data-region-editable="1"])::after {
+            content:"";
+            position:absolute;
+            pointer-events:none;
+            left:var(--span-boundary-left,0%);
+            top:0;
+            width:var(--span-boundary-width,100%);
+            height:100%;
+            box-sizing:border-box;
+            border:1px solid var(--region-frame-color,#2563eb);
+            outline:none;
+        }
+
+        .textLayer ::selection {
+            background: rgba(37, 99, 235, 0.3);
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: white;
+            z-index: 90;
+            pointer-events: none;
+        }
+
+        /* 拖拽高亮效果 */
+        .main.drag-active .viewerContainer {
+            outline: 1px dashed #2563eb;
+            outline-offset: -3px;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        /* 工具栏操作区 */
+        .toolbar-actions {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 0;
+        }
+
+        .toolbar-actions.show {
+            display: flex;
+        }
+
+        /* 工具栏操作按钮 */
+        .toolbar-action-btn {
+            position: relative;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            background: rgba(148, 163, 184, 0.25);
+            color: rgba(255, 255, 255, 0.75);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .toolbar-action-btn:not(:disabled):hover {
+            background: rgba(148, 163, 184, 0.38);
+            color: white;
+        }
+
+        /* 取消合并按钮 */
+        .unmerge-btn.active {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        /* 取消合并模式：已合并区域可点击 */
+        .viewerContainer.unmerge-mode .textLayer span.is-merged {
+            cursor: pointer;
+        }
+
+        /* 所有工具栏按钮统一禁用态，禁用时不响应悬停高亮。 */
+        .toolbar-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* 分隔线 */
+        .toolbar-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            margin: 0 2px;
+        }
+
+        /* 合并模式 */
+        .merge-btn.active {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+        }
+
+        /* 智能合并确认弹窗 */
+        .smart-merge-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .smart-merge-modal.show {
+            display: flex;
+        }
+
+        .smart-merge-dialog {
+            background: white;
+            border-radius: 10px;
+            padding: 24px 28px;
+            width: 360px;
+            max-width: 90vw;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        .smart-merge-text {
+            font-size: 15px;
+            color: #1e293b;
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+
+        .smart-merge-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .smart-merge-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #475569;
+            font-size: 13px;
+        }
+
+        .smart-merge-field input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            color: #0f172a;
+            font-size: 14px;
+            outline: none;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        .smart-merge-field input::-webkit-inner-spin-button,
+        .smart-merge-field input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .smart-merge-field input:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+        }
+
+        .smart-merge-error {
+            min-height: 20px;
+            margin-bottom: 10px;
+            color: #dc2626;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .smart-merge-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .smart-merge-btn-confirm,
+        .smart-merge-btn-cancel {
+            padding: 7px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .smart-merge-btn-confirm {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+        }
+
+        .smart-merge-btn-confirm:hover {
+            opacity: 0.9;
+        }
+
+        .smart-merge-btn-cancel {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .smart-merge-btn-cancel:hover {
+            background: #e2e8f0;
+        }
+
+        .viewerContainer.merge-mode .page {
+            cursor: crosshair;
+        }
+
+        .viewerContainer.merge-mode .textLayer span {
+            pointer-events: none !important;
+        }
+
+        /* 框选矩形 */
+        .merge-select-rect {
+            position: absolute;
+            border: 1px dashed #059669;
+            background: rgba(5, 150, 105, 0.1);
+            z-index: 25;
+            pointer-events: none;
+        }
+
+        /* 所有文件的合并区域统一使用透明底色，保留绿色边界。 */
+        .textLayer span.is-merged {
+            background: transparent !important;
+            border: 1px solid #059669 !important;
+            border-radius: 2px;
+            opacity: 1 !important;
+            z-index: 20;
+            display: inline-block !important;
+            box-sizing: border-box;
+            padding: 1px;
+        }
+
+        /* 原文的行宽已由 PDF 计算好，标记边界不能占用文字的排版空间。 */
+        .textLayer span.is-merged[data-original-lines] {
+            border: 0 !important;
+            outline: 1px solid #059669;
+            padding: 0;
+        }
+
+        /* 未改内容沿用 canvas 中原 PDF 的混合字体和颜色，只合并文字层。 */
+        .textLayer span.is-merged[data-source-appearance] {
+            color: transparent !important;
+            background: transparent !important;
+        }
+
+        /* 紧密稽查记录的边框画在区域内，避免外描边挤到下一条用户记录。 */
+        .textLayer span.is-merged[data-source-appearance][data-audit-row-frame] {
+            outline: none;
+            border: var(--merge-frame-width, 1px) solid #059669 !important;
+            mix-blend-mode: multiply;
+        }
+
+        /* 未修改原文的标记按物理像素画实线，避免缩放后的半像素描边发虚。 */
+        .textLayer span.is-merged[data-source-appearance] {
+            outline: none;
+            border: var(--merge-frame-width, 1px) solid #059669 !important;
+            border-radius: 0;
+            padding: 0;
+        }
+
+        /* 替换文字可见；底层旧文字从内容流移除，保留表格的原始底色。 */
+        .textLayer span.is-json-replaced,
+        .textLayer div.is-json-replaced {
+            color: var(--replacement-text-color, #000000) !important;
+            background: transparent !important;
+            opacity: 1 !important;
+            z-index: 15 !important;
+            display: inline-block !important;
+            box-sizing: border-box;
+            white-space: pre-wrap !important;
+            overflow: visible !important;
+            box-shadow: none;
+        }
+
+        .textLayer .is-json-replaced[data-json-single-line] {
+            white-space: pre !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+            overflow: visible !important;
+        }
+
+        .textLayer span.is-merged[data-json-replacement] {
+            overflow: hidden !important;
+            max-width: none;
+            max-height: none;
+            background: transparent !important;
+            padding: 0;
+            border: 0 !important;
+            outline: 1px solid #059669;
+        }
+
+        /* Replacement glyphs use regular font programs, never synthesized styles. */
+        .textLayer .is-json-replaced,
+        .textLayer .is-merged[data-json-replacement],
+        .annotationLayer .element-json-replacement {
+            font-weight: 400 !important;
+            font-style: normal !important;
+            font-stretch: normal !important;
+            font-synthesis: none !important;
+            font-variant: normal !important;
+            text-decoration: none !important;
+            text-shadow: none !important;
+            text-transform: none !important;
+            letter-spacing: 0 !important;
+            word-spacing: 0 !important;
+        }
+
+        /* 红框复用同一层边框，原元素不再同时绘制 border 和 outline。 */
+        .pdfViewer .page .textLayer [data-text-overflow="1"],
+        .pdfViewer .page .annotationLayer [data-text-overflow="1"] {
+            --region-frame-color:#ef4444;
+            outline:none !important;
+            border-color:transparent !important;
+            box-shadow:none !important;
+        }
+        @media print {
+            .pdfViewer .page .textLayer [data-text-overflow="1"],
+            .pdfViewer .page .annotationLayer [data-text-overflow="1"] { outline: none !important; }
+            .pdfViewer [data-text-overflow="1"]::after { display:none !important; }
+        }
+
+        /* 所有经过边界检测的替换都裁剪在确定的安全区域，含单行。 */
+        .textLayer .is-json-replaced[data-json-clipped="1"] {overflow:hidden !important;white-space:pre !important;}
+
+        /* 更新时保留旧底图，暂不显示尚未匹配的新文字层。 */
+        .page[data-pdf-preview-pending] :is(.textLayer,.annotationLayer),
+        .page[data-pdf-preview-pending] :is(.textLayer,.annotationLayer) * { visibility:hidden !important; pointer-events:none !important; }
+
+        /* 替换文字已由同一份导出PDF绘制；透明文字层继续支持选择和data-id。 */
+        .page[data-pdf-preview="1"] .textLayer :is(span, div),
+        .page[data-pdf-preview="1"] .annotationLayer .element-json-replacement {
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+            -webkit-text-stroke-color: transparent !important;
+            text-shadow: none !important;
+        }
+
+        /* 白色覆盖层（遮盖 canvas 原文） */
+        .textLayer .edit-cover {
+            position: absolute;
+            background: #ffffff;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* 加载遮罩 */
+        .loading-overlay {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 15;
+            background: #f1f5f9;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: #64748b;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        .pdf-font-dialog { position:fixed; top:50%; left:50%; right:auto; bottom:auto; transform:translate(-50%,-50%); margin:0; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow:auto; width:min(430px,calc(100vw - 40px)); border:0; border-radius:14px; padding:26px; color:#182235; background:#fff; box-shadow:0 16px 60px #0004; }
+        .pdf-region-dialog input { width:100%; min-width:0; padding:8px 10px; border:1px solid #b8c2d1; border-radius:7px; font:inherit; }
+        .pdf-region-dialog .region-error { color:#b42318; min-height:1.5em; font-size:13px; }
+        .pdf-region-dialog button:disabled { opacity:.6; cursor:wait; }
+        body[data-region-edit-ready="0"] :is(.region-resize-overlay,.region-resize-erase,.region-keyboard-outline) { display:none !important; }
+        body[data-region-edit-ready="0"] #viewerContainer.show-span-boundaries:not(.merge-mode):not(.unmerge-mode) .page :is([data-span-boundary="1"],[data-region-editable="1"],[data-text-overflow="1"],span.is-merged),
+        body[data-region-edit-ready="0"] #viewerContainer.show-span-boundaries:not(.merge-mode):not(.unmerge-mode) .page :is([data-span-boundary="1"],[data-region-editable="1"],[data-text-overflow="1"],span.is-merged) * { cursor:text !important; }
+        .pdfViewer [data-text-overflow="1"] { cursor:pointer; }
+        .pdfViewer [data-region-editable="1"] { cursor:pointer; }
+        /* 框内文字、链接及其子元素统一为可点击光标。 */
+        #viewerContainer.show-span-boundaries .page :is([data-span-boundary="1"],[data-region-editable="1"],[data-text-overflow="1"],span.is-merged),
+        #viewerContainer.show-span-boundaries .page :is([data-span-boundary="1"],[data-region-editable="1"],[data-text-overflow="1"],span.is-merged) *,
+        #viewerContainer.show-span-boundaries [data-region-pointer="1"] { cursor:pointer !important; }
+        /* 完整单行为蓝框，多行为绿框；溢出继续使用红框。 */
+        .pdfViewer [data-region-editable="1"] { --region-frame-color:#059669; }
+        .pdfViewer [data-region-editable="1"][data-region-lines="1"] { --region-frame-color:#2563eb; }
+        #viewer.pdfViewer .page [data-region-editable="1"]:not([data-text-overflow="1"]) { outline:none !important; border-color:transparent !important; }
+        .viewerContainer .page [data-region-editable="1"][data-region-custom="1"]::after { width:100%; left:0; }
+        @media print { .pdfViewer [data-region-editable="1"]::after { display:none !important; } }
+
+        .pdf-font-dialog::backdrop { background:#11182780; }
+        .pdf-font-dialog h2 { margin:0 0 12px; font-size:21px; }
+        .pdf-font-dialog p { font-size:14px; line-height:1.6; }
+        .pdf-font-dialog label { display:grid; grid-template-columns:100px 1fr; align-items:center; gap:12px; margin:18px 0; }
+        .pdf-font-dialog select { min-width:0; padding:9px 12px; border:1px solid #b8c2d1; border-radius:7px; font:inherit; background:#fff; color:#182235; }
+        .pdf-font-dialog .font-hint { color:#56647a; font-size:12px; }
+        .pdf-font-dialog .font-actions { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
+        .pdf-font-dialog button { padding:9px 16px; border:0; border-radius:7px; cursor:pointer; font:inherit; background:#e9edf3; color:#182235; }
+        .pdf-font-dialog button[type=submit] { background:#2563eb; color:white; }
+        /* 悬停只切换原框线型，位置和宽高完全不变；实际拖动才使用浮层预览。 */
+        #viewer.pdfViewer .page [data-region-overlay-active="1"]::after { border-style:dashed !important; }
+        #viewer.pdfViewer .page [data-region-overlay-dragging="1"] { outline:none !important; border-color:transparent !important; box-shadow:none !important; }
+        #viewer.pdfViewer .page [data-region-overlay-dragging="1"]::after { display:none !important; }
+        .region-resize-overlay { position:fixed; z-index:100; pointer-events:none; transform-origin:0 0; box-sizing:border-box; border:1px dashed #059669; }
+        .region-resize-overlay[data-multiline="0"] { border-color:#2563eb; }
+        .region-resize-overlay[data-incomplete="1"] { border-color:#ef4444; }
+        .region-resize-overlay[data-dragging="0"] { border-color:transparent !important; }
+        #viewer.pdfViewer .page [data-region-selected="1"]::after { border-width:2px !important; border-style:solid !important; }
+        .region-resize-overlay[data-selected="1"] { border-width:2px; border-style:solid; }
+        .region-keyboard-outline { position:fixed; z-index:101; pointer-events:none; transform-origin:0 0; box-sizing:border-box; border:2px solid; }
+        .region-keyboard-outline[hidden] { display:none !important; }
+        #viewer.pdfViewer .page [data-region-keyboard-active="1"]::after { display:none !important; }
+        body[data-page-boundaries="0"] .region-keyboard-outline { display:none !important; }
+        @media print { .region-keyboard-outline { display:none !important; } }
+        .region-resize-overlay[hidden],.region-resize-erase[hidden] { display:none !important; }
+        .region-resize-handle { position:absolute; pointer-events:auto; touch-action:none; width:14px; height:14px; padding:0; border:2px solid white; border-radius:3px; background:#2563eb; box-shadow:0 0 0 1px #2563eb; }
+        .region-resize-handle[hidden] { display:none !important; }
+        /* 细胶囊贴合边线；整条边仍可拖动，手柄仅提示方向。 */
+        .region-resize-handle:is([data-axis="x"],[data-axis="y"]) { --grip-color:#3b82f6; --grip-paper:#fff; --grip-border:#93c5fd; border:0; border-radius:0; background:transparent; box-shadow:none; }
+        .region-resize-handle:is([data-axis="x"],[data-axis="y"])::after { content:""; position:absolute; left:50%; top:50%; box-sizing:border-box; transform:translate(-50%,-50%); border:1px solid var(--grip-border); border-radius:6px; background-color:var(--grip-paper); background-image:linear-gradient(var(--grip-color),var(--grip-color)); background-repeat:no-repeat; background-position:center; box-shadow:0 1px 4px rgba(15,23,42,.12); pointer-events:none; transition:border-color .12s,background-color .12s,box-shadow .12s; }
+        .region-resize-handle[data-axis="x"] { right:-7px; top:0; width:14px; height:100%; cursor:ew-resize; }
+        .region-resize-handle[data-axis="x"]::after { width:10px; height:26px; max-height:100%; background-size:2px 10px; }
+        .region-resize-handle[data-axis="y"] { bottom:-7px; left:0; width:100%; height:14px; cursor:ns-resize; }
+        .region-resize-handle[data-axis="y"]::after { width:26px; max-width:100%; height:10px; background-size:10px 2px; }
+        .region-resize-handle:is([data-axis="x"],[data-axis="y"]):is(:hover,:focus-visible,:active) { --grip-color:#2563eb; --grip-paper:#eff6ff; --grip-border:#3b82f6; }
+        .region-resize-handle:is([data-axis="x"],[data-axis="y"]):active::after { box-shadow:0 0 0 2px rgba(59,130,246,.12); }
+        .region-resize-handle[data-axis="move"] { left:-10px; top:-10px; width:20px; height:20px; box-sizing:border-box; padding:0; display:flex; align-items:center; justify-content:center; font:14px/16px sans-serif; color:white; cursor:grab; }
+        .region-resize-handle[data-axis="move"]:active { cursor:grabbing; }
+        .region-resize-clip { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+        .region-resize-preview { position:absolute; left:0; top:0; width:100%; height:100%; overflow:hidden; white-space:pre; pointer-events:none; font-weight:400; font-style:normal; font-synthesis:none; letter-spacing:0; word-spacing:0; }
+        .region-resize-erase { position:fixed; z-index:99; pointer-events:none; }
+        @media print { .region-resize-overlay,.region-resize-erase { display:none !important; } }
+        /* 预览统一隐藏蓝色边界、绿色合并/编辑框和红色溢出框；不改变区域尺寸。 */
+        #viewerContainer.viewerContainer:not(.show-span-boundaries) .page :is(span.is-merged,[data-span-boundary],[data-text-overflow],[data-region-editable]) {
+            outline:none !important;
+            border-color:transparent !important;
+            box-shadow:none !important;
+        }
+        #viewerContainer.viewerContainer:not(.show-span-boundaries) .page :is([data-region-editable],[data-text-overflow]) { cursor:text !important; }
+        body[data-page-boundaries="0"] .region-resize-overlay { border-color:transparent !important; }
+        body[data-page-boundaries="0"] .region-resize-handle { display:none !important; }
+            #shortcutHelpBtn { white-space:nowrap; flex-shrink:0; }
+        .shortcut-help-dialog { position:fixed; inset:50% auto auto 50%; transform:translate(-50%,-50%); margin:0; width:min(760px,calc(100vw - 32px)); max-height:calc(100dvh - 40px); overflow:hidden; padding:0; border:0; border-radius:14px; color:#182235; background:#fff; box-shadow:0 20px 70px #0005; }
+        .shortcut-help-dialog[open] { display:flex; flex-direction:column; }
+        .shortcut-help-dialog::backdrop { background:#0f172a80; }
+        .shortcut-help-header { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:20px 24px; border-bottom:1px solid #e2e8f0; }
+        .shortcut-help-header h2 { margin:0; font-size:20px; }
+        .shortcut-help-close { width:32px; height:32px; padding:0; border:0; border-radius:6px; background:transparent; color:#64748b; font-size:26px; cursor:pointer; }
+        .shortcut-help-close:hover { background:#f1f5f9; color:#0f172a; }
+        .shortcut-help-content { flex:1 1 auto; min-height:0; margin-right:16px; padding:4px 8px 12px 24px; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-gutter:stable; }
+        .shortcut-help-content h3 { margin:20px 0 10px; font-size:15px; }
+        .shortcut-help-content p { margin:8px 0 12px; color:#64748b; font-size:13px; line-height:1.7; }
+        .shortcut-help-content table { width:100%; border-collapse:collapse; font-size:13px; line-height:1.65; }
+        .shortcut-help-content th,.shortcut-help-content td { padding:10px 12px; text-align:left; vertical-align:top; border-bottom:1px solid #e2e8f0; }
+        .shortcut-help-content th { background:#f8fafc; font-weight:600; }
+        .shortcut-help-content td:first-child { width:43%; }
+        .shortcut-help-content kbd { display:inline-block; min-width:24px; padding:1px 5px; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; font:12px/1.7 ui-monospace,monospace; text-align:center; white-space:nowrap; }
+        .shortcut-help-footer { flex-shrink:0; display:flex; justify-content:flex-end; padding:14px 24px; border-top:1px solid #e2e8f0; }
+        .shortcut-help-footer button { padding:8px 22px; border:0; border-radius:7px; color:white; background:#2563eb; font:inherit; cursor:pointer; }
+        @media(max-width:600px){.shortcut-help-header,.shortcut-help-footer{padding:16px}.shortcut-help-content{padding:0 12px 12px}.shortcut-help-content th,.shortcut-help-content td{padding:8px 6px}}
+        @media print { #shortcutHelpDialog { display:none !important; } }
+    
+#app, .pdf-workspace { min-height:100vh; }
+.editor-error{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:16px;align-items:center;max-width:90vw;padding:12px 18px;border:1px solid #ef4444;border-radius:8px;background:#fff;color:#991b1b;}
+.editor-error button{padding:4px 12px;cursor:pointer;}

@@ -1,0 +1,31 @@
+{
+  "name": "pdf-view-vue",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0",
+    "pnpm": ">=10.20.0 <11"
+  },
+  "scripts": {
+    "resources": "node scripts/copy-pdf-resources.mjs",
+    "predev": "pnpm resources",
+    "dev": "vite --host 127.0.0.1",
+    "prebuild": "pnpm resources",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "axios": "1.21.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "3.11.174",
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.1",
+    "happy-dom": "21.0.4",
+    "vite": "7.1.12"
+  }
+}
