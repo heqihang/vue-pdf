@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/vue-pdf',
+  base: '/vue-pdf/',
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   optimizeDeps: { include: ['pdfjs-dist/build/pdf.js', 'pdfjs-dist/web/pdf_viewer.js', 'pdf-lib'] },
   build: {
