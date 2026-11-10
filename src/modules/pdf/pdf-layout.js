@@ -557,12 +557,14 @@ const layoutFixedPdfText = (text, font, preferredSize, preferredLineHeight, widt
       for (let i=0;i<lines.length;i++) if (font.widthOfTextAtSize(lines[i], fontSize) > width + .001 || truncated && i === lines.length-1) {
         lines[i] = ellipsize(lines[i]);truncated = true;
       }
-      // An oversized first row may be clipped even without an ellipsis.
+      // 拉伸保留原基线；字体轮廓在边缘可能仅超出不足一个像素。
+      // 忽略最多 0.25pt 的字形边缘误差，不改变排版、字号或真正截断的判定。
+      const inkTolerance = Math.min(.25, fontSize * .025);
       const clipped = lines.some((line, index) => {
         if (!line.trim()) return false;
         const ink = font.inkBoundsAtSize?.(line, fontSize);
         const baseline = baselineOffset + index * lineHeight;
-        return !!ink && (baseline - ink.ascent < -.01 || baseline + ink.descent > height + .01);
+        return !!ink && (baseline - ink.ascent < -inkTolerance || baseline + ink.descent > height + inkTolerance);
       });
       const incomplete = !!normalizePdfVectorText(text).trim() && (truncated || clipped);
       const contentWidth=Math.min(width,lines.reduce((maximum,line)=>Math.max(maximum,font.widthOfTextAtSize(line,fontSize)),0));

@@ -5,6 +5,8 @@ import { pdfjsLib } from '@/services/pdf-runtime.js'
   export const PDFRegionResize =Object.freeze({create:app=>{
 const scope = app.scope;
 const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, requestAnimationFrame, cancelAnimationFrame, MutationObserver } = scope;
+    // 与实线边框相同的顶部外扩量；文本预览在 clip 内抵消此偏移。
+    const frameTopGap=2;
     const overlay=document.createElement('div'),preview=document.createElement('div'),clip=document.createElement('div'),erase=document.createElement('canvas');
     overlay.className='region-resize-overlay';clip.className='region-resize-clip';preview.className='region-resize-preview';erase.className='region-resize-erase';
     overlay.hidden=erase.hidden=true;preview.hidden=true;clip.append(preview);overlay.append(clip);
@@ -52,17 +54,17 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
         const t=Math.max(0,Math.min(1,((event.clientX-a.x)*x+(event.clientY-a.y)*y)/length));
         return Math.hypot(event.clientX-a.x-t*x,event.clientY-a.y-t*y);
       };
-      const edges=[['x',point(w,0),point(w,h)],['y',point(0,h),point(w,h)]];
+      const edges=[['x',point(w,-frameTopGap),point(w,h)],['y',point(0,h),point(w,h)]];
       const nearest=edges.map(([axis,a,b])=>({axis,distance:distance(a,b)})).sort((a,b)=>a.distance-b.distance)[0];
       return nearest.distance<=7?nearest.axis:null;
     };
     const actionAt=(info,event)=>{
       if(!Number.isFinite(event?.clientX)||!Number.isFinite(event?.clientY))return null;
-      const {origin}=geometry(info);
-      return Math.hypot(event.clientX-origin.x,event.clientY-origin.y)<=20?'move':edgeAt(info,event);
+      const {origin,m}=geometry(info);
+      return Math.hypot(event.clientX-origin.x+m[2]*frameTopGap,event.clientY-origin.y+m[3]*frameTopGap)<=20?'move':edgeAt(info,event);
     };
     const position=(info,frame=info.frame,g=geometry(info))=>{
-      Object.assign(overlay.style,{left:`${g.origin.x}px`,top:`${g.origin.y}px`,width:`${frame.width*info.scale}px`,height:`${frame.height*info.scale}px`,transform:`matrix(${g.m.slice(0,4).join(',')},0,0)`});
+      Object.assign(overlay.style,{left:`${g.origin.x-g.m[2]*frameTopGap}px`,top:`${g.origin.y-g.m[3]*frameTopGap}px`,width:`${frame.width*info.scale}px`,height:`${frame.height*info.scale+frameTopGap}px`,transform:`matrix(${g.m.slice(0,4).join(',')},0,0)`});
       overlay.dataset.selected=info.element.dataset.regionSelected==='1'?'1':'0';
       overlay.dataset.incomplete=info.element.dataset.textOverflow==='1'?'1':'0';
       overlay.dataset.multiline=info.element.dataset.regionLines==='1'?'0':'1';
@@ -269,7 +271,7 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
       const {frame,g}=keyboardDraft({...base.info,element},base.g,tasks);
       if(keyboardOutlineSource!==element){keyboardOutlineSource?.removeAttribute('data-region-keyboard-active');keyboardOutlineSource=element;}
       element.dataset.regionKeyboardActive='1';
-      Object.assign(keyboardOutline.style,{left:`${g.origin.x}px`,top:`${g.origin.y}px`,width:`${frame.width*base.info.scale}px`,height:`${frame.height*base.info.scale}px`,transform:`matrix(${g.m.slice(0,4).join(',')},0,0)`,borderColor:element.dataset.textOverflow==='1'?'#ef4444':element.dataset.regionLines==='1'?'#2563eb':'#059669'});
+      Object.assign(keyboardOutline.style,{left:`${g.origin.x-g.m[2]*frameTopGap}px`,top:`${g.origin.y-g.m[3]*frameTopGap}px`,width:`${frame.width*base.info.scale}px`,height:`${frame.height*base.info.scale+frameTopGap}px`,transform:`matrix(${g.m.slice(0,4).join(',')},0,0)`,borderColor:element.dataset.textOverflow==='1'?'#ef4444':element.dataset.regionLines==='1'?'#2563eb':'#059669'});
       keyboardOutline.hidden=false;
       // 键盘预览只画一个框，不更新文字、不创建底图或重新排版。
       hide();

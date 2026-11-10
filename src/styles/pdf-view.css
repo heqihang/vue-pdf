@@ -233,9 +233,10 @@
             position:absolute;
             pointer-events:none;
             left:var(--span-boundary-left,0%);
-            top:0;
+            /* 仅把顶部装饰边框外扩 2px，不挪动文字或改变 PDF 排版框。 */
+            top:-2px;
             width:var(--span-boundary-width,100%);
-            height:100%;
+            height:calc(100% + 2px);
             box-sizing:border-box;
             border:1px solid var(--region-frame-color,#2563eb);
             outline:none;
@@ -663,6 +664,9 @@
         .pdf-font-dialog .font-actions { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
         .pdf-font-dialog button { padding:9px 16px; border:0; border-radius:7px; cursor:pointer; font:inherit; background:#e9edf3; color:#182235; }
         .pdf-font-dialog button[type=submit] { background:#2563eb; color:white; }
+        /* 原 PDF/替换底图已经绘制文字，透明选择层只允许装饰边框向上绘制。 */
+        .textLayer [data-source-appearance][data-region-editable="1"] { overflow:visible !important; }
+        .page[data-pdf-preview="1"] :is(.textLayer,.annotationLayer) [data-region-editable="1"] { overflow:visible !important; }
         /* 悬停只切换原框线型，位置和宽高完全不变；实际拖动才使用浮层预览。 */
         #viewer.pdfViewer .page [data-region-overlay-active="1"]::after { border-style:dashed !important; }
         #viewer.pdfViewer .page [data-region-overlay-dragging="1"] { outline:none !important; border-color:transparent !important; box-shadow:none !important; }
@@ -692,7 +696,7 @@
         .region-resize-handle:is([data-axis="x"],[data-axis="y"]):active::after { box-shadow:0 0 0 2px rgba(59,130,246,.12); }
         .region-resize-handle[data-axis="move"] { left:-10px; top:-10px; width:20px; height:20px; box-sizing:border-box; padding:0; display:flex; align-items:center; justify-content:center; font:14px/16px sans-serif; color:white; cursor:grab; }
         .region-resize-handle[data-axis="move"]:active { cursor:grabbing; }
-        .region-resize-clip { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+        .region-resize-clip { position:absolute; inset:2px 0 0; overflow:hidden; pointer-events:none; }
         .region-resize-preview { position:absolute; left:0; top:0; width:100%; height:100%; overflow:hidden; white-space:pre; pointer-events:none; font-weight:400; font-style:normal; font-synthesis:none; letter-spacing:0; word-spacing:0; }
         .region-resize-erase { position:fixed; z-index:99; pointer-events:none; }
         @media print { .region-resize-overlay,.region-resize-erase { display:none !important; } }
