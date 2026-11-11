@@ -1,3 +1,4 @@
+import { PDFRegionPreview } from './pdf-region-preview.js'
 import * as PDFLib from 'pdf-lib'
 import { pdfjsLib } from '@/services/pdf-runtime.js'
 /** 区域拖拽改宽高，页面操作统一以 CSS px 计算，保存时换算 PDF 坐标；不缩放字形或字号。 */
@@ -142,9 +143,33 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
         const old=state.g.rect;erase.width=Math.max(1,Math.ceil(old.width*paper.width/rect.width));erase.height=Math.max(1,Math.ceil(old.height*paper.height/rect.height));
         Object.assign(erase.style,{left:`${old.left}px`,top:`${old.top}px`,width:`${old.width}px`,height:`${old.height}px`});
         erase.getContext('2d').drawImage(paper,(old.left-rect.left)*paper.width/rect.width,(old.top-rect.top)*paper.height/rect.height,old.width*paper.width/rect.width,old.height*paper.height/rect.height,0,0,erase.width,erase.height);
-        erase.hidden=false;return true;
+        return true;
       }catch(error){console.warn('拖动文字预览未准备完成，松开后仍会更新准确排版。',error);return false;}
       finally{if(task)await task.destroy().catch(()=>{});}
+    };
+    const renderPreview=async state=>{
+      if(state.rendering||state.previewFailed||!state.renderer||!state.paper)return;
+      state.rendering=true;
+      try{
+        while(drag===state&&state.phase==='drag'&&!state.suppressPreview&&state.renderedKey!==state.layoutKey){
+          const key=state.layoutKey,layout=state.layout;
+          const canvas=await state.renderer.render(layout,state.info.scale);
+          if(!canvas||drag!==state||state.phase!=='drag'||state.suppressPreview)return;
+          // 慢帧不能覆盖更晚的尺寸；始终只显示最新的准确字形。
+          if(key!==state.layoutKey)continue;
+          const border=state.info.element.dataset.regionSelected==='1'?2:1;
+          Object.assign(clip.style,{inset:`${frameTopGap-border}px ${-border}px ${-border}px`});
+          Object.assign(preview.style,{top:'0',height:`${layout.height*state.info.scale}px`});
+          preview.replaceChildren(canvas);
+          state.renderedKey=key;
+          preview.hidden=false;erase.hidden=false;
+        }
+      }catch(error){
+        if(drag===state&&state.phase==='drag'){
+          state.previewFailed=true;preview.hidden=erase.hidden=true;
+          console.warn('准确字形预览暂不可用，保留原字形，松开后更新排版。',error);
+        }
+      }finally{state.rendering=false;}
     };
     const draw=state=>{
       if(state.suppressPreview){clearActive();preview.hidden=erase.hidden=overlay.hidden=true;return;}
@@ -153,14 +178,11 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
       const key=`${state.frame.width}:${state.frame.height}:${!!state.frame.singleLine}`;
       if(state.layoutKey!==key){
         state.layoutKey=key;
-        state.layout=app.layoutFixedPdfText(state.info.text,state.metric||=app.regionEditor.measure(state.font,state.info.style),state.info.style.fontSize,state.info.style.lineHeight,state.frame.width,state.frame.height,{singleLine:!!state.frame.singleLine,baselineOffset:state.info.style.positionBaseline??state.info.base.baselineOffset});
+        state.layout={...app.layoutFixedPdfText(state.info.text,state.metric||=app.regionEditor.measure(state.font,state.info.style),state.info.style.fontSize,state.info.style.lineHeight,state.frame.width,state.frame.height,{singleLine:!!state.frame.singleLine,baselineOffset:state.info.style.positionBaseline??state.info.base.baselineOffset}),
+          alignment:state.frame.alignment||'left',letterSpacing:state.info.style.letterSpacing||0,wordSpacing:state.info.style.wordSpacing||0};
       }
-      const layout=state.layout;
-      const {scale,style}=state.info;
-      const baseline=state.previewBaseline??=app.getPreviewBaselineOffset(state.info.family,style.fontSize*scale,style.lineHeight*scale,state.info.text,'400');
-      preview.textContent=layout.lines.join('\n');
-      Object.assign(preview.style,{top:`${layout.baselineOffset*scale-baseline}px`,height:`${Math.max(state.frame.height*scale,style.lineHeight*scale)}px`,fontFamily:state.info.family,fontSize:`${style.fontSize*scale}px`,lineHeight:`${style.lineHeight*scale}px`,letterSpacing:`${style.letterSpacing*scale}px`,wordSpacing:`${style.wordSpacing*scale}px`,fontKerning:'none',fontVariantLigatures:'none',color:state.info.color,textAlign:state.frame.alignment||'left'});
-      overlay.dataset.incomplete=layout.incomplete?'1':'0';overlay.dataset.multiline=layout.lines.length>1?'1':'0';preview.hidden=false;
+      overlay.dataset.incomplete=state.layout.incomplete?'1':'0';overlay.dataset.multiline=state.layout.lines.length>1?'1':'0';
+      void renderPreview(state);
     };
     const start=event=>{
       if(!app.regionEditor.canEdit||app.mergeMode||app.unmergeMode)return;
@@ -171,7 +193,7 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
       if(app.smartMerge.running||app.jsonFileInput.dataset.importing)return;
       const state={info:current,g:geometry(current),axis:handle.dataset.axis,x:event.clientX,y:event.clientY,frame:{...current.frame,alignment:'left',...(handle.dataset.axis==='move'?{}:{singleLine:false})},pointer:event.pointerId,moved:false,phase:'drag'};drag=state;
       showEdge(state.axis);handle.setPointerCapture?.(event.pointerId);
-      app.getReplacementMetrics(current.pageNum,current.text+'...',current.family,current.base.originalFontName,'normal','normal').then(font=>{if(drag===state){state.font=font;draw(state);}}).catch(console.warn);
+      PDFRegionPreview.create(app,state.info).then(renderer=>{if(drag===state&&state.phase==='drag'){state.renderer=renderer;state.font=renderer.font;draw(state);}else renderer.destroy();}).catch(error=>{if(drag===state)console.warn('准确字形预览未准备完成，暂时保留原文。',error);});
       draw(state);
     };
     const finish=async(event,cancel=false)=>{
@@ -179,8 +201,8 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
       if(!state||state.phase!=='drag'||event.pointerId!==undefined&&event.pointerId!==state.pointer)return;
       event.preventDefault?.();event.stopImmediatePropagation?.();
       suppressedUntil=Date.now()+300;
-      if(cancel||!state.moved){drag=null;preview.hidden=erase.hidden=true;hide();return;}
-      state.phase='commit';
+      if(cancel||!state.moved){state.renderer?.destroy();drag=null;preview.hidden=erase.hidden=true;hide();return;}
+      state.phase='commit';state.renderer?.destroy();
       try{await app.regionEditor[state.axis==='move'?'move':'resize'](state.info,state.frame);}
       catch(error){if(state.info.doc===app.pdfDoc)app.setStatus(`区域调整失败：${error.message}`);}
       finally{if(drag===state){drag=null;preview.hidden=erase.hidden=true;clearActive();current=null;if(state.info.element.isConnected&&state.info.doc===app.pdfDoc)show(state.info.element).catch(console.warn);else hide();}}
@@ -326,7 +348,7 @@ const { document, window, setTimeout, clearTimeout, setInterval, clearInterval, 
     const selectionChanged=()=>{
       if(keyboardQueue.length&&keyboardQueue.some(task=>task.id!==selectionKey())){keyboardEpoch++;keyboardQueue.length=0;clearTimeout(keyboardTimer);keyboardTimer=null;clearKeyboardOutline();notifyKeyboardSettled();}
     };
-    const reset=()=>{keyboardEpoch++;keyboardQueue.length=0;clearKeyboardOutline();clearTimeout(keyboardTimer);keyboardTimer=null;setRegionPointer(null);sequence++;drag=null;showEdge(null);clearActive();current=null;preview.hidden=erase.hidden=overlay.hidden=true;notifyKeyboardSettled();};
+    const reset=()=>{keyboardEpoch++;keyboardQueue.length=0;clearKeyboardOutline();clearTimeout(keyboardTimer);keyboardTimer=null;setRegionPointer(null);sequence++;drag?.renderer?.destroy();drag=null;showEdge(null);clearActive();current=null;preview.hidden=erase.hidden=overlay.hidden=true;notifyKeyboardSettled();};
     window.addEventListener('resize',reset);
     window.addEventListener('scroll',()=>{if(!keyboardRunning){clearKeyboardOutline();if(keyboardQueue.length)void updateKeyboardOutline();}if(drag?.phase==='drag')finish({},true);else if(drag){clearActive();drag.suppressPreview=true;preview.hidden=erase.hidden=overlay.hidden=true;}else hide();},true);
     return Object.freeze({get dragging(){return !!drag;},get suppressClick(){return !!drag||Date.now()<suppressedUntil;},get keyboardPending(){return keyboardRunning||!!keyboardQueue.length;},reset,selectionChanged,whenKeyboardSettled,clampedFrame,movedFrame});
